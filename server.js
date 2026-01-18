@@ -1,92 +1,139 @@
 const express = require("express");
-const fs = require("fs");
 const cors = require("cors");
-const multer = require("multer");
+const bodyParser = require("body-parser");
+const fs = require("fs");
 const path = require("path");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-const upload = multer({ dest: "uploads/" });
+// make sure folders exist
+const uploadsDir = path.join(__dirname, "uploads");
+const sitesDir = path.join(__dirname, "sites");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+if (!fs.existsSync(sitesDir)) fs.mkdirSync(sitesDir);
 
-const ADMIN_PASSWORD = "mine1234$$";
-const USERS_FILE = "users.json";
-const SITES_FOLDER = "sites";
+// load users
+const usersFile = path.join(__dirname, "users.json");
+if (!fs.existsSync(usersFile)) fs.writeFileSync(usersFile, JSON.stringify([]));
 
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "[]");
-if (!fs.existsSync(SITES_FOLDER)) fs.mkdirSync(SITES_FOLDER);
+// helper to read/write users
+function readUsers() {
+  return JSON.parse(fs.readFileSync(usersFile, "utf8"));
+}
+function writeUsers(users) {
+  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+}
 
+// Serve frontend static files
 app.use(express.static("frontend"));
 
-app.post("/submit", upload.single("screenshot"), (req, res) => {
-  const { name, type } = req.body;
-  const users = JSON.parse(fs.readFileSync(USERS_FILE));
-
-  const user = {
-    id: Date.now(),
-    name,
-    type,
-    screenshot: req.file?.filename || null,
-    approved: false,
-    published: false,
-    siteId: null
-  };
-
-  users.push(user);
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-  res.json({ success: true, id: user.id });
+// Root route fix (important for Render)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
 
-app.post("/admin", (req, res) => {
-  if (req.body.password === ADMIN_PASSWORD) {
+// submit website request
+app.post("/submit", (req, res) => {
+  const { name, type, phone } = req.body;
+
+  if (!name || !type || !phone) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const users = readUsers();
+  const id = Date.now().toString();
+  users.push({
+    id,
+    name,
+    type,
+    phone,
+    status: "pending",
+    screenshot: "",
+  });
+
+  writeUsers(users);
+  res.json({ message: "Request submitted", id });
+});
+
+// upload screenshot (manual payment)
+app.post("/upload", (req, res) => {
+  const { id, screenshot } = req.body;
+  const users = readUsers();
+  const user = users.find((u) => u.id === id);
+
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  user.screenshot = screenshot;
+  writeUsers(users);
+  res.json({ message: "Screenshot uploaded" });
+});
+
+// admin login (simple password)
+app.post("/admin/login", (req, res) => {
+  const { password } = req.body;
+  if (password === "mine1234$$") {
     res.json({ success: true });
   } else {
-    res.json({ success: false });
+    res.status(401).json({ success: false });
   }
 });
 
-app.get("/users", (req, res) => {
-  res.json(JSON.parse(fs.readFileSync(USERS_FILE)));
+// admin list users
+app.get("/admin/users", (req, res) => {
+  const users = readUsers();
+  res.json(users);
 });
 
-app.post("/approve", (req, res) => {
-  const users = JSON.parse(fs.readFileSync(USERS_FILE));
-  const user = users.find(u => u.id == req.body.id);
+// approve user
+app.post("/admin/approve", (req, res) => {
+  const { id } = req.body;
+  const users = readUsers();
+  const user = users.find((u) => u.id === id);
 
-  if (!user) return res.json({ error: "User not found" });
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-  user.approved = true;
-  user.siteId = "site-" + user.id;
+  user.status = "approved";
+  writeUsers(users);
+
+  // generate website
+  const sitePath = path.join(sitesDir, id);
+  if (!fs.existsSync(sitePath)) fs.mkdirSync(sitePath);
 
   const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<title>${user.name}</title>
-<meta charset="UTF-8">
-<style>
-body{font-family:Arial;padding:20px}
-h1{color:#4f46e5}
-</style>
-</head>
-<body>
-<h1>${user.name}</h1>
-<p>Business Type: ${user.type}</p>
-<p>Website generated automatically.</p>
-</body>
-</html>
-`;
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>${user.name}</title>
+    <style>
+      body { font-family: Arial; padding: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>${user.name}</h1>
+    <p>Type: ${user.type}</p>
+    <p>Phone: ${user.phone}</p>
+    <p>Status: Approved</p>
+  </body>
+  </html>
+  `;
 
-  fs.writeFileSync(`${SITES_FOLDER}/${user.siteId}.html`, html);
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-  res.json({ success: true, link: `/site/${user.siteId}` });
+  fs.writeFileSync(path.join(sitePath, "index.html"), html);
+
+  res.json({ message: "Approved & published" });
 });
 
+// serve generated sites
 app.get("/site/:id", (req, res) => {
-  res.sendFile(path.join(__dirname, "sites", `${req.params.id}.html`));
+  const sitePath = path.join(sitesDir, req.params.id, "index.html");
+  if (!fs.existsSync(sitePath)) {
+    return res.status(404).send("Site not found");
+  }
+  res.sendFile(sitePath);
 });
 
-app.listen(process.env.PORT || 3000, () =>
-  console.log("Server running")
-);
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Server running...");
+});
