@@ -1,49 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin</title>
+  <title>Admin Panel</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="box">
-  <h2>Admin Login</h2>
-  <input id="pass" placeholder="Password">
-  <button onclick="login()">Login</button>
-  <div id="list"></div>
-</div>
+  <div class="container">
+    <h1>Admin Panel</h1>
 
-<script>
-function login(){
-  fetch("/admin",{
-    method:"POST",
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({password:pass.value})
-  }).then(r=>r.json()).then(d=>{
-    if(d.success) load();
-    else alert("Wrong password");
-  });
-}
+    <input type="password" id="password" placeholder="Enter Admin Password">
+    <button id="loginBtn">Login</button>
 
-function load(){
-  fetch("/users").then(r=>r.json()).then(users=>{
-    list.innerHTML="";
-    users.forEach(u=>{
-      list.innerHTML+=`
-        <div>
-          <b>${u.name}</b> (${u.type})
-          <button onclick="approve(${u.id})">Approve</button>
-        </div>`;
+    <div id="adminArea" style="display:none;">
+      <h2>Users</h2>
+      <div id="userList"></div>
+    </div>
+  </div>
+
+  <script>
+    const loginBtn = document.getElementById("loginBtn");
+    const adminArea = document.getElementById("adminArea");
+
+    loginBtn.addEventListener("click", async () => {
+      const password = document.getElementById("password").value;
+
+      const res = await fetch("/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        adminArea.style.display = "block";
+        loadUsers();
+      } else {
+        alert("Wrong password");
+      }
     });
-  });
-}
 
-function approve(id){
-  fetch("/approve",{
-    method:"POST",
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id})
-  }).then(()=>load());
-}
-</script>
+    async function loadUsers() {
+      const res = await fetch("/admin/users");
+      const users = await res.json();
+
+      const userList = document.getElementById("userList");
+      userList.innerHTML = "";
+
+      users.forEach(user => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <p><strong>${user.name}</strong> - ${user.type} - ${user.status}</p>
+          <p>Phone: ${user.phone}</p>
+          <p>Screenshot: ${user.screenshot}</p>
+          <button onclick="approve('${user.id}')">Approve</button>
+          <hr>
+        `;
+        userList.appendChild(div);
+      });
+    }
+
+    async function approve(id) {
+      await fetch("/admin/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      loadUsers();
+    }
+  </script>
 </body>
 </html>
