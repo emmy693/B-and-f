@@ -1,10 +1,69 @@
-function send(){
-  const f = new FormData();
-  f.append("name", name.value);
-  f.append("type", type.value);
-  f.append("screenshot", shot.files[0]);
+const submitForm = document.getElementById("submitForm");
+const uploadForm = document.getElementById("uploadForm");
 
-  fetch("/submit", { method:"POST", body:f })
-    .then(r=>r.json())
-    .then(d=>alert("Submitted. ID: "+d.id));
-}
+submitForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const name = document.getElementById("name").value;
+  const type = document.getElementById("type").value;
+  const phone = document.getElementById("phone").value;
+
+  const res = await fetch("/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, type, phone })
+  });
+
+  const data = await res.json();
+  document.getElementById("message").innerText = data.message + "\nYour User ID: " + data.id;
+});
+
+uploadForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById("userId").value;
+  const screenshot = document.getElementById("screenshot").value;
+
+  const res = await fetch("/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, screenshot })
+  });
+
+  const data = await res.json();
+  document.getElementById("uploadMessage").innerText = data.message;
+});const submitForm = document.getElementById("submitForm");
+const uploadForm = document.getElementById("uploadForm");
+
+submitForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const name = document.getElementById("name").value;
+  const type = document.getElementById("type").value;
+  const phone = document.getElementById("phone").value;
+
+  const res = await fetch("/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, type, phone })
+  });
+
+  const data = await res.json();
+  document.getElementById("message").innerText = data.message + "\nYour User ID: " + data.id;
+});
+
+uploadForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById("userId").value;
+  const screenshot = document.getElementById("screenshot").value;
+
+  const res = await fetch("/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, screenshot })
+  });
+
+  const data = await res.json();
+  document.getElementById("uploadMessage").innerText = data.message;
+});
