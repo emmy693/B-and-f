@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="box">
+  <h2>Admin Login</h2>
+  <input id="pass" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <div id="list"></div>
+</div>
+
+<script>
+function login(){
+  fetch("/admin",{
+    method:"POST",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({password:pass.value})
+  }).then(r=>r.json()).then(d=>{
+    if(d.success) load();
+    else alert("Wrong password");
+  });
+}
+
+function load(){
+  fetch("/users").then(r=>r.json()).then(users=>{
+    list.innerHTML="";
+    users.forEach(u=>{
+      list.innerHTML+=`
+        <div>
+          <b>${u.name}</b> (${u.type})
+          <button onclick="approve(${u.id})">Approve</button>
+        </div>`;
+    });
+  });
+}
+
+function approve(id){
+  fetch("/approve",{
+    method:"POST",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id})
+  }).then(()=>load());
+}
+</script>
+</body>
+</html>
