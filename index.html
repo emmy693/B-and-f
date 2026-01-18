@@ -5,14 +5,31 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="box">
-  <h2>Create Website</h2>
-  <input id="name" placeholder="Website Name">
-  <input id="type" placeholder="Website Type">
-  <input type="file" id="shot">
-  <button onclick="send()">Submit Payment Screenshot</button>
-  <p><a href="admin.html">Admin Panel</a></p>
-</div>
-<script src="script.js"></script>
+  <div class="container">
+    <h1>AI Web Builder</h1>
+    <p>Create your website in minutes. Pay 5000 Naira via OPay and upload screenshot.</p>
+
+    <form id="submitForm">
+      <input type="text" id="name" placeholder="Your Name" required>
+      <input type="text" id="type" placeholder="Website Type (e.g. restaurant)" required>
+      <input type="text" id="phone" placeholder="Phone Number" required>
+      <button type="submit">Submit Request</button>
+    </form>
+
+    <div id="message"></div>
+
+    <hr>
+
+    <h2>Upload Payment Screenshot</h2>
+    <form id="uploadForm">
+      <input type="text" id="userId" placeholder="User ID" required>
+      <textarea id="screenshot" placeholder="Paste screenshot link here" required></textarea>
+      <button type="submit">Upload Screenshot</button>
+    </form>
+
+    <div id="uploadMessage"></div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
